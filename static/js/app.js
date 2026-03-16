@@ -294,7 +294,7 @@ async function askAIGuide(question) {
     const data = await post('/api/ai-guide', { location: currentLocation.name, question });
     content.innerHTML = `<div class="ai-response">${data.guide}</div>`;
   } catch(e) {
-    content.innerHTML = '<p style="color:var(--text2);font-size:11px">AI guide unavailable. Add OpenRouter API key.</p>';
+    content.innerHTML = '<p style="color:var(--text2);font-size:11px">AI currently guide unavailable.</p>';
   }
   btn.disabled = false;
 }
