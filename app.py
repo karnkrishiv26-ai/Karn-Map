@@ -75,14 +75,46 @@ def ai_guide():
     location = data.get("location", "Unknown")
     question = data.get("question", "Tell me about this place")
     prompt = f"You are an expert world travel guide. Location: {location}. Question: {question}. Give a vivid, engaging response in 3-4 sentences with 1 insider tip. Be enthusiastic but concise."
-    if OPENROUTER_API_KEY:
-        headers = {"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json", "HTTP-Referer": "https://satellite-tour-guide.app"}
-        payload = {"model": "google/gemma-3-4b-it:free", "messages": [{"role": "user", "content": prompt}]}
-        resp = requests.post("https://openrouter.ai/api/v1/chat/completions", json=payload, headers=headers)
-        text = resp.json()["choices"][0]["message"]["content"]
-    else:
-        text = f"🌍 You're exploring **{location}**! Add a free OpenRouter API key in .env to unlock AI travel insights."
-    return jsonify({"guide": text})
+
+    if not OPENROUTER_API_KEY:
+        return jsonify({"guide": f"🌍 Add a free OpenRouter API key in .env to unlock AI travel insights."})
+
+    # List of free models to try in order
+    FREE_MODELS = [
+        "deepseek/deepseek-r1:free",
+        "google/gemma-3-4b-it:free",
+        "mistralai/mistral-small-3.1-24b-instruct:free",
+        "meta-llama/llama-3.2-3b-instruct:free",
+        "qwen/qwen-2.5-7b-instruct:free",
+        "microsoft/phi-3-mini-128k-instruct:free",
+        "huggingfaceh4/zephyr-7b-beta:free",
+    ]
+
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://karn-map.onrender.com"
+    }
+
+    for model in FREE_MODELS:
+        try:
+            payload = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}]
+            }
+            resp = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                json=payload,
+                headers=headers,
+                timeout=15
+            )
+            if resp.status_code == 200:
+                text = resp.json()["choices"][0]["message"]["content"]
+                return jsonify({"guide": text})
+        except:
+            continue
+
+    return jsonify({"guide": "AI guide temporarily unavailable. Please try again in a moment."})
 
 @app.route("/api/elevation")
 def elevation():
