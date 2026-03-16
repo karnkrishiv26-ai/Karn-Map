@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Krishiv Satellite Tour Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body>
+<header class="hud-bar">
+  <div class="logo"><span class="logo-map">KARN Map</span><span class="logo-sub">SATELLITE GUIDE</span></div>
+  <div class="search-wrap">
+    <input id="searchInput" type="text" placeholder="Search any place on Earth…" autocomplete="off"/>
+    <button id="searchBtn">⌕</button>
+    <div id="searchResults" class="search-dropdown"></div>
+  </div>
+  <div class="hud-stats">
+    <div class="stat" id="coordDisplay"><span class="stat-label">COORDS</span><span class="stat-val" id="sv-coords">—</span></div>
+    <div class="stat" id="elevDisplay"><span class="stat-label">ELEV</span><span class="stat-val" id="sv-elev">—</span></div>
+    <div class="stat" id="tempDisplay"><span class="stat-label">TEMP</span><span class="stat-val" id="sv-temp">—</span></div>
+  </div>
+  <div class="layer-switcher">
+    <button class="layer-btn active" data-layer="satellite">SAT</button>
+    <button class="layer-btn" data-layer="street">TERRAIN</button>
+    <button class="layer-btn" data-layer="terrain">STREET</button>
+    <button class="layer-btn" data-layer="dark">DARK</button>
+  </div>
+</header>
+
+<div id="map"></div>
+<div class="scanlines" aria-hidden="true"></div>
+<div class="crosshair" aria-hidden="true"></div>
+
+<div class="panel route-panel" id="routePanel">
+  <div class="panel-title">⇢ ROUTE PLANNER</div>
+  <input id="routeFrom" type="text" placeholder="From — click map or type"/>
+  <div class="route-arrow">↓</div>
+  <input id="routeTo" type="text" placeholder="To — click map or type"/>
+  <div class="route-profile-row">
+    <button class="profile-btn active" data-p="driving"> Drive</button>
+    <button class="profile-btn" data-p="cycling">Bike</button>
+    <button class="profile-btn" data-p="foot"> Walk</button>
+  </div>
+  <button id="calcRoute" class="cta-btn">CALCULATE ROUTE</button>
+  <div id="routeInfo" class="route-info"></div>
+</div>
+
+<div class="panel weather-panel" id="weatherPanel" style="display:none">
+  <div class="panel-title">☁ WEATHER <span id="weatherLoc" style="opacity:.6;font-size:10px"></span></div>
+  <div id="weatherContent"></div>
+</div>
+
+<div class="fab-stack">
+  <button class="fab" id="locateMe" title="My Location">◎</button>
+  <button class="fab" id="toggleRoute" title="Route">⇢</button>
+  <button class="fab" id="togglePOI" title="Show POIs">⬡</button>
+  <button class="fab" id="toggleWeather" title="Weather">☁</button>
+  <button class="fab danger" id="clearRoute" title="Clear">✕</button>
+</div>
+
+<div id="infoPanel" class="info-panel" style="display:none">
+  <button class="close-btn" id="closePanel">✕</button>
+  <div class="info-tabs">
+    <button class="tab-btn active" data-tab="overview">OVERVIEW</button>
+    <button class="tab-btn" data-tab="wiki">WIKI</button>
+    <button class="tab-btn" data-tab="pois">NEARBY</button>
+    <button class="tab-btn" data-tab="ai">AI GUIDE</button>
+  </div>
+  <div class="tab-pane active" id="tab-overview">
+    <div class="place-hero">
+      <div id="placeName" class="place-name">Loading…</div>
+      <div id="placeAddr" class="place-addr"></div>
+    </div>
+    <div class="mini-stats">
+      <div class="ms"><span class="ms-l">LAT</span><span id="ms-lat" class="ms-v">—</span></div>
+      <div class="ms"><span class="ms-l">LON</span><span id="ms-lon" class="ms-v">—</span></div>
+      <div class="ms"><span class="ms-l">ELEV</span><span id="ms-elev" class="ms-v">—</span></div>
+      <div class="ms"><span class="ms-l">COUNTRY</span><span id="ms-country" class="ms-v">—</span></div>
+    </div>
+    <div id="overviewWeather" class="overview-weather"></div>
+    <div class="route-set-btns">
+      <button class="cta-btn" id="setAsFrom">Set as START</button>
+      <button class="cta-btn secondary" id="setAsTo">Set as DESTINATION</button>
+    </div>
+  </div>
+  <div class="tab-pane" id="tab-wiki">
+    <div id="wikiContent" class="wiki-content"><div class="loading-spin"></div></div>
+    <div class="wiki-search">
+      <input id="wikiQuery" type="text" placeholder="Search Wikipedia…"/>
+      <button id="wikiSearchBtn">GO</button>
+    </div>
+  </div>
+  <div class="tab-pane" id="tab-pois">
+    <div class="poi-header">
+      <span>Points of Interest</span>
+      <select id="poiRadius">
+        <option value="500">500m</option>
+        <option value="1000" selected>1km</option>
+        <option value="3000">3km</option>
+        <option value="10000">10km</option>
+      </select>
+    </div>
+    <div id="poisList" class="pois-list"><div class="loading-spin"></div></div>
+  </div>
+  <div class="tab-pane" id="tab-ai">
+    <div class="ai-badge">✦ AI TRAVEL GUIDE</div>
+    <div id="aiGuideContent" class="ai-content"><p class="ai-placeholder">Click a prompt below or ask your own question about this location.</p></div>
+    <div class="ai-prompts">
+      <button class="prompt-chip" data-q="What are the top 5 must-see attractions here?">Top Attractions</button>
+      <button class="prompt-chip" data-q="What local food and drink should I absolutely try?">Local Food</button>
+      <button class="prompt-chip" data-q="Best time to visit and travel tips?">Best Time</button>
+      <button class="prompt-chip" data-q="Hidden gems and insider tips only locals know">Hidden Gems</button>
+      <button class="prompt-chip" data-q="Budget travel advice — how to visit cheaply?">Budget Tips</button>
+      <button class="prompt-chip" data-q="Is it safe to visit and what should I be careful about?">Safety</button>
+    </div>
+    <div class="ai-input-row">
+      <input id="aiQuestion" type="text" placeholder="Ask anything about this place…"/>
+      <button id="askAI">ASK ✦</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
